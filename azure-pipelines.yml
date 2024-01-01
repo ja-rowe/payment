@@ -1,0 +1,45 @@
+# Docker
+# Build and push an image to Azure Container Registry
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- master
+
+resources:
+- repo: self
+
+variables:
+- group: aks-terraform
+- name: imageRepository
+  value: 'payment'
+- name: dockerfilePath
+  value: '$(Build.SourcesDirectory)/docker/payment/Dockerfile'
+- name: tag
+  value: '$(Build.BuildId)'
+
+stages:
+- stage: Build
+  displayName: Build and push stage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      name: default
+    steps:
+    - task: Bash@3
+      displayName: Copy go deps
+      inputs:
+        targetType: 'inline'
+        script: |
+          ./build.sh
+        workingDirectory: '$(Build.SourcesDirectory)/scripts'
+    - task: Docker@2
+      displayName: Build and push an image to container registry
+      inputs:
+        command: buildAndPush
+        repository: $(imageRepository)
+        dockerfile: $(dockerfilePath)
+        buildContext: $(Build.SourcesDirectory)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(tag)
